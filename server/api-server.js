@@ -40,7 +40,7 @@ app.get('/video', (req, res) => {
         <img id="liveStream" width="640" height="480" />
         <script>
             async function fetchFrame() {
-                const response = await fetch('/stream'); // Use a URL relativa
+                const response = await fetch('https://videoec.vercel.app/stream'); // Use a URL relativa
                 const data = await response.json();
                 const image = document.getElementById('liveStream');
                 if (data.frame) {
