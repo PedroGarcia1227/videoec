@@ -1,8 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const http = require('http');
-const WebSocket = require('ws');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,40 +38,35 @@ app.get('/video', (req, res) => {
     <body>
         <img id="liveStream" width="640" height="480" />
         <script>
-            const ws = new WebSocket('wss://videoec.vercel.app');
-            const image = document.getElementById('liveStream');
-
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                if (data.frame) {
-                    image.src = \`data:image/jpeg;base64,\${data.frame}\`;
+            async function fetchFrame() {
+                try {
+                    const response = await fetch('/latest-frame');
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    const data = await response.json();
+                    const image = document.getElementById('liveStream');
+                    if (data.frame) {
+                        image.src = \`data:image/jpeg;base64,\${data.frame}\`;
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar o frame:', error);
                 }
-            };
-
-            ws.onerror = function(error) {
-                console.error('WebSocket error:', error);
-            };
+            }
+            setInterval(fetchFrame, 100); // Atualiza o frame a cada 100ms
+            fetchFrame(); // Carrega o frame inicial
         </script>
     </body>
     </html>
   `);
 });
 
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-
-wss.on('connection', (ws) => {
-  console.log('Cliente WebSocket conectado');
-
-  ws.on('close', () => {
-    console.log('Cliente WebSocket desconectado');
-  });
-
-  setInterval(() => {
-    if (latestFrame) {
-      ws.send(JSON.stringify({ frame: latestFrame }));
-    }
-  }, 100); // Envia o frame a cada 100ms
+app.get('/latest-frame', (req, res) => {
+  if (latestFrame) {
+    res.status(200).json({ frame: latestFrame });
+  } else {
+    res.status(404).json({ message: 'Nenhum frame encontrado' });
+  }
 });
 
 app.listen(PORT, () => {
