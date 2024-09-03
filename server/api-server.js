@@ -5,10 +5,10 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(bodyParser.json({ limit: '50mb' })); // Ajuste o limite conforme necessário
-app.use(cors()); // Habilita CORS
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(cors());
 
-let latestFrame = null; // Variável para armazenar o último frame recebido
+let latestFrame = null;
 
 app.get('/', (req, res) => {
   res.status(200).send('API está funcionando');
@@ -18,7 +18,7 @@ app.post('/stream', (req, res) => {
   const { frame } = req.body;
 
   if (frame) {
-    latestFrame = frame; // Armazena o frame recebido
+    latestFrame = frame;
     console.log('Frame recebido:', frame);
     res.status(200).json({ message: 'Frame recebido com sucesso' });
   } else {
@@ -26,7 +26,6 @@ app.post('/stream', (req, res) => {
   }
 });
 
-// Rota para servir o HTML de visualização
 app.get('/video', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -39,28 +38,22 @@ app.get('/video', (req, res) => {
     <body>
         <img id="liveStream" width="640" height="480" />
         <script>
-            async function fetchFrame() {
-                const response = await fetch('/latest-frame'); // Ajuste a URL para um novo endpoint
-                const data = await response.json();
+            function fetchFrame() {
                 const image = document.getElementById('liveStream');
-                if (data.frame) {
-                    image.src = \`data:image/jpeg;base64,\${data.frame}\`;
-                }
+                fetch('/stream')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.frame) {
+                            image.src = \`data:image/jpeg;base64,\${data.frame}\`;
+                        }
+                    });
             }
             setInterval(fetchFrame, 100); // Atualiza o frame a cada 100ms
+            fetchFrame(); // Carrega o frame inicial
         </script>
     </body>
     </html>
   `);
-});
-
-// Novo endpoint para fornecer o frame mais recente
-app.get('/latest-frame', (req, res) => {
-  if (latestFrame) {
-    res.status(200).json({ frame: latestFrame });
-  } else {
-    res.status(404).json({ message: 'Nenhum frame encontrado' });
-  }
 });
 
 app.listen(PORT, () => {
