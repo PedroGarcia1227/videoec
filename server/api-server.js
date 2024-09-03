@@ -19,7 +19,7 @@ app.post('/stream', (req, res) => {
 
   if (frame) {
     latestFrame = frame;
-    console.log('Frame recebido:', frame);
+    console.log('Frame recebido:', frame); // Mantenha os logs para depuração
     res.status(200).json({ message: 'Frame recebido com sucesso' });
   } else {
     res.status(400).json({ message: 'Nenhum frame enviado' });
