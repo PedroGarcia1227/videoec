@@ -38,15 +38,20 @@ app.get('/video', (req, res) => {
     <body>
         <img id="liveStream" width="640" height="480" />
         <script>
-            function fetchFrame() {
-                const image = document.getElementById('liveStream');
-                fetch('/stream')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.frame) {
-                            image.src = \`data:image/jpeg;base64,\${data.frame}\`;
-                        }
-                    });
+            async function fetchFrame() {
+                try {
+                    const response = await fetch('/latest-frame');
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    const data = await response.json();
+                    const image = document.getElementById('liveStream');
+                    if (data.frame) {
+                        image.src = \`data:image/jpeg;base64,\${data.frame}\`;
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar o frame:', error);
+                }
             }
             setInterval(fetchFrame, 100); // Atualiza o frame a cada 100ms
             fetchFrame(); // Carrega o frame inicial
@@ -54,6 +59,14 @@ app.get('/video', (req, res) => {
     </body>
     </html>
   `);
+});
+
+app.get('/latest-frame', (req, res) => {
+  if (latestFrame) {
+    res.status(200).json({ frame: latestFrame });
+  } else {
+    res.status(404).json({ message: 'Nenhum frame encontrado' });
+  }
 });
 
 app.listen(PORT, () => {
