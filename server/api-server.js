@@ -40,7 +40,7 @@ app.get('/video', (req, res) => {
     <body>
         <img id="liveStream" width="640" height="480" />
         <script>
-            const ws = new WebSocket('ws://localhost:3000');
+            const ws = new WebSocket('wss://videoec.vercel.app');
             const image = document.getElementById('liveStream');
 
             ws.onmessage = function(event) {
