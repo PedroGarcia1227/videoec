@@ -3,77 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Stream</title>
+    <title>Capture and Send Photo</title>
     <style>
-        .container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            flex-wrap: wrap;
-            margin: 0 auto;
+        #statusMessage {
+            margin-top: 20px;
+            font-weight: bold;
         }
-        .camera {
-            text-align: center;
-            border: 1px solid #ddd;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 8px;
+        #buttons {
+            margin-top: 20px;
         }
-        .camera img {
-            width: 320px;
-            height: 240px;
-            object-fit: cover;
-        }
-        .camera h2 {
-            margin: 0;
-            font-size: 18px;
-            color: #333;
+        button {
+            margin: 0 10px;
+            padding: 10px 20px;
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="camera">
-            <h2>Camera 1</h2>
-            <img id="camera1" />
-        </div>
-        <div class="camera">
-            <h2>Camera 2</h2>
-            <img id="camera2" />
-        </div>
-        <div class="camera">
-            <h2>Camera 3</h2>
-            <img id="camera3" />
-        </div>
+    <video id="localVideo" autoplay playsinline></video>
+    <div id="buttons">
+        <button id="button1">Camera 1</button>
+        <button id="button2">Camera 2</button>
+        <button id="button3">Camera 3</button>
     </div>
+    <div id="statusMessage"></div>
+
     <script>
-        async function fetchFrame(camera) {
+        const localVideo = document.getElementById('localVideo');
+        const statusMessage = document.getElementById('statusMessage');
+
+        let currentStream = null;
+        let selectedRoute = '';
+
+        function displayMessage(message, isError = false) {
+            statusMessage.textContent = message;
+            statusMessage.style.color = isError ? 'red' : 'green';
+        }
+
+        async function startStream(deviceId) {
             try {
-                const response = await fetch(`/latest-frame${camera}`);
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        deviceId: deviceId ? { exact: deviceId } : undefined
+                    }
+                };
+
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
                 }
-                const data = await response.json();
-                const image = document.getElementById(`camera${camera}`);
-                if (data.frame) {
-                    image.src = `data:image/jpeg;base64,${data.frame}`;
-                }
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                localVideo.srcObject = stream;
+                currentStream = stream;
+                startSendingFrames();
             } catch (error) {
-                console.error(`Erro ao buscar o frame da câmera ${camera}:`, error);
+                console.error('Error accessing media devices:', error);
+                displayMessage('Erro ao acessar a câmera.', true);
             }
         }
 
-        function startFetchingFrames() {
-            setInterval(() => fetchFrame(1), 100);
-            setInterval(() => fetchFrame(2), 100);
-            setInterval(() => fetchFrame(3), 100);
-            fetchFrame(1);
-            fetchFrame(2);
-            fetchFrame(3);
+        function captureAndSendPhoto() {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = localVideo.videoWidth;
+            canvas.height = localVideo.videoHeight;
+            context.drawImage(localVideo, 0, 0);
+
+            const frame = canvas.toDataURL('image/jpeg').split(',')[1];
+            sendFrameToApi(frame);
         }
 
-        window.onload = startFetchingFrames;
+        async function sendFrameToApi(frame) {
+            try {
+                const response = await fetch(`https://videoec.vercel.app/stream${selectedRoute}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ frame })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    console.error('Erro ao enviar o frame:', result.message);
+                    displayMessage(`Erro ao enviar o frame: ${result.message}`, true);
+                } else {
+                    displayMessage(`Resposta do servidor: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Erro ao enviar o frame:', error);
+                displayMessage('Erro ao enviar o frame.', true);
+            }
+        }
+
+        function startSendingFrames() {
+            function captureLoop() {
+                captureAndSendPhoto();
+                requestAnimationFrame(captureLoop);
+            }
+            captureLoop();
+        }
+
+        document.getElementById('button1').addEventListener('click', () => {
+            selectedRoute = '1';
+            startStream();
+        });
+
+        document.getElementById('button2').addEventListener('click', () => {
+            selectedRoute = '2';
+            startStream();
+        });
+
+        document.getElementById('button3').addEventListener('click', () => {
+            selectedRoute = '3';
+            startStream();
+        });
+
+        window.onload = () => {
+            navigator.mediaDevices.enumerateDevices().then(devices => {
+                const cameras = devices.filter(device => device.kind === 'videoinput');
+                if (cameras.length > 0) {
+                    startStream(cameras[0].deviceId);
+                }
+            });
+        };
     </script>
 </body>
 </html>
