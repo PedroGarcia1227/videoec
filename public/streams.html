@@ -76,7 +76,7 @@
 
         async function sendFrameToApi(frame) {
             try {
-                const response = await fetch(`/stream/${selectedRoute}`, {
+                const response = await fetch(`https://videoec.vercel.app/${selectedRoute}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ frame })
