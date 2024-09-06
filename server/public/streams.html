@@ -26,7 +26,7 @@
         <button id="button2">Camera 2</button>
         <button id="button3">Camera 3</button>
     </div>
-    <div id="statusMessage"></div> <!-- Mensagem de status -->
+    <div id="statusMessage"></div>
 
     <script>
         const localVideo = document.getElementById('localVideo');
@@ -50,13 +50,13 @@
                 };
 
                 if (currentStream) {
-                    currentStream.getTracks().forEach(track => track.stop()); // Parar o stream atual
+                    currentStream.getTracks().forEach(track => track.stop());
                 }
 
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 localVideo.srcObject = stream;
                 currentStream = stream;
-                startSendingFrames(); // Inicia o envio contínuo de frames
+                startSendingFrames();
             } catch (error) {
                 console.error('Error accessing media devices:', error);
                 displayMessage('Erro ao acessar a câmera.', true);
@@ -97,7 +97,6 @@
         }
 
         function startSendingFrames() {
-            // Captura e envia frames continuamente, usando requestAnimationFrame para melhor sincronização
             function captureLoop() {
                 captureAndSendPhoto();
                 requestAnimationFrame(captureLoop);
@@ -107,21 +106,20 @@
 
         document.getElementById('button1').addEventListener('click', () => {
             selectedRoute = 'stream1';
-            startStream(); // Inicia a câmera padrão (pode ser a primeira disponível)
+            startStream();
         });
 
         document.getElementById('button2').addEventListener('click', () => {
             selectedRoute = 'stream2';
-            startStream(); // Inicia a câmera padrão (pode ser a primeira disponível)
+            startStream();
         });
 
         document.getElementById('button3').addEventListener('click', () => {
             selectedRoute = 'stream3';
-            startStream(); // Inicia a câmera padrão (pode ser a primeira disponível)
+            startStream();
         });
 
         window.onload = () => {
-            // Inicializa com a primeira câmera disponível
             navigator.mediaDevices.enumerateDevices().then(devices => {
                 const cameras = devices.filter(device => device.kind === 'videoinput');
                 if (cameras.length > 0) {
