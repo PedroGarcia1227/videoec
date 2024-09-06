@@ -52,10 +52,13 @@ app.post('/stream3', (req, res) => {
   }
 });
 
+app.get('/streams', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'streams.html'));
+});
+
 app.get('/videos', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'videos.html'));
 });
-
 
 app.get('/latest-frame1', (req, res) => {
   if (latestFrame1) {
