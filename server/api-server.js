@@ -6,6 +6,7 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(cors());
 
@@ -54,11 +55,11 @@ app.post('/stream3', (req, res) => {
 });
 
 app.get('/streams', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'streams.html'));
+  res.sendFile(path.join(__dirname, '..','public', 'streams.html'));
 });
 
 app.get('/videos', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'videos.html'));
+  res.sendFile(path.join(__dirname, '..','public', 'videos.html'));
 });
 
 app.get('/latest-frame1', (req, res) => {
