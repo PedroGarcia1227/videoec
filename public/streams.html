@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capture and Send Photo</title>
+    <style>
+        #statusMessage {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        #buttons {
+            margin-top: 20px;
+        }
+        button {
+            margin: 0 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <video id="localVideo" autoplay playsinline></video>
+    <div id="buttons">
+        <button id="button1">Camera 1</button>
+        <button id="button2">Camera 2</button>
+        <button id="button3">Camera 3</button>
+    </div>
+    <div id="statusMessage"></div> <!-- Mensagem de status -->
+
+    <script>
+        const localVideo = document.getElementById('localVideo');
+        const statusMessage = document.getElementById('statusMessage');
+
+        let currentStream = null;
+        let selectedRoute = '';
+
+        function displayMessage(message, isError = false) {
+            statusMessage.textContent = message;
+            statusMessage.style.color = isError ? 'red' : 'green';
+        }
+
+        async function startStream(deviceId) {
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        deviceId: deviceId ? { exact: deviceId } : undefined
+                    }
+                };
+
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop()); // Parar o stream atual
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                localVideo.srcObject = stream;
+                currentStream = stream;
+                startSendingFrames(); // Inicia o envio contínuo de frames
+            } catch (error) {
+                console.error('Error accessing media devices:', error);
+                displayMessage('Erro ao acessar a câmera.', true);
+            }
+        }
+
+        function captureAndSendPhoto() {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = localVideo.videoWidth;
+            canvas.height = localVideo.videoHeight;
+            context.drawImage(localVideo, 0, 0);
+
+            const frame = canvas.toDataURL('image/jpeg').split(',')[1];
+            sendFrameToApi(frame);
+        }
+
+        async function sendFrameToApi(frame) {
+            try {
+                const response = await fetch(`https://videoec.vercel.app/${selectedRoute}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ frame })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    console.error('Erro ao enviar o frame:', result.message);
+                    displayMessage(`Erro ao enviar o frame: ${result.message}`, true);
+                } else {
+                    displayMessage(`Resposta do servidor: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Erro ao enviar o frame:', error);
+                displayMessage('Erro ao enviar o frame.', true);
+            }
+        }
+
+        function startSendingFrames() {
+            // Captura e envia frames continuamente, usando requestAnimationFrame para melhor sincronização
+            function captureLoop() {
+                captureAndSendPhoto();
+                requestAnimationFrame(captureLoop);
+            }
+            captureLoop();
+        }
+
+        document.getElementById('button1').addEventListener('click', () => {
+            selectedRoute = 'stream1';
+            startStream(); // Inicia a câmera padrão (pode ser a primeira disponível)
+        });
+
+        document.getElementById('button2').addEventListener('click', () => {
+            selectedRoute = 'stream2';
+            startStream(); // Inicia a câmera padrão (pode ser a primeira disponível)
+        });
+
+        document.getElementById('button3').addEventListener('click', () => {
+            selectedRoute = 'stream3';
+            startStream(); // Inicia a câmera padrão (pode ser a primeira disponível)
+        });
+
+        window.onload = () => {
+            // Inicializa com a primeira câmera disponível
+            navigator.mediaDevices.enumerateDevices().then(devices => {
+                const cameras = devices.filter(device => device.kind === 'videoinput');
+                if (cameras.length > 0) {
+                    startStream(cameras[0].deviceId);
+                }
+            });
+        };
+    </script>
+</body>
+</html>
