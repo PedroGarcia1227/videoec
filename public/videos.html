@@ -50,7 +50,7 @@
     <script>
         async function fetchFrame(camera) {
             try {
-                const response = await fetch(`/latest-frame/${camera}`);
+                const response = await fetch(`/latest-frame${camera}`);
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
@@ -65,12 +65,12 @@
         }
 
         function startFetchingFrames() {
-            setInterval(() => fetchFrame("stream1"), 100);
-            setInterval(() => fetchFrame("stream2"), 100);
-            setInterval(() => fetchFrame("stream3"), 100);
-            fetchFrame("stream1");
-            fetchFrame("stream2");
-            fetchFrame("stream3");
+            setInterval(() => fetchFrame(1), 100);
+            setInterval(() => fetchFrame(2), 100);
+            setInterval(() => fetchFrame(3), 100);
+            fetchFrame(1);
+            fetchFrame(2);
+            fetchFrame(3);
         }
 
         window.onload = startFetchingFrames;
