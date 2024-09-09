@@ -20,7 +20,7 @@
             background-color: #f9f9f9;
             border-radius: 8px;
         }
-        .camera img {
+        .camera video {
             width: 320px;
             height: 240px;
             object-fit: cover;
@@ -36,44 +36,51 @@
     <div class="container">
         <div class="camera">
             <h2>Camera 1</h2>
-            <img id="camera1" />
+            <video id="camera1" autoplay playsinline></video>
         </div>
         <div class="camera">
             <h2>Camera 2</h2>
-            <img id="camera2" />
+            <video id="camera2" autoplay playsinline></video>
         </div>
         <div class="camera">
             <h2>Camera 3</h2>
-            <img id="camera3" />
+            <video id="camera3" autoplay playsinline></video>
         </div>
     </div>
     <script>
-        async function fetchFrame(camera) {
-            try {
-                const response = await fetch(`/latest-frame${camera}`);
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
+        function setupWebSocket(cameraId) {
+            const video = document.getElementById(`camera${cameraId}`);
+            const ws = new WebSocket(`ws://localhost:3000?stream=${cameraId}`);
+            
+            let mediaSource;
+            let sourceBuffer;
+
+            ws.onopen = () => {
+                console.log(`Conectado ao stream ${cameraId}`);
+                mediaSource = new MediaSource();
+                video.src = URL.createObjectURL(mediaSource);
+
+                mediaSource.onsourceopen = () => {
+                    sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs=vp9');
+                };
+            };
+
+            ws.onmessage = (event) => {
+                if (sourceBuffer && !sourceBuffer.updating) {
+                    sourceBuffer.appendBuffer(event.data);
                 }
-                const data = await response.json();
-                const image = document.getElementById(`camera${camera}`);
-                if (data.frame) {
-                    image.src = `data:image/jpeg;base64,${data.frame}`;
-                }
-            } catch (error) {
-                console.error(`Erro ao buscar o frame da câmera ${camera}:`, error);
-            }
+            };
+
+            ws.onerror = (error) => {
+                console.error(`Erro na conexão WebSocket para câmera ${cameraId}:`, error);
+            };
         }
 
-        function startFetchingFrames() {
-            setInterval(() => fetchFrame(1), 100);
-            setInterval(() => fetchFrame(2), 100);
-            setInterval(() => fetchFrame(3), 100);
-            fetchFrame(1);
-            fetchFrame(2);
-            fetchFrame(3);
-        }
-
-        window.onload = startFetchingFrames;
+        window.onload = () => {
+            setupWebSocket(1);
+            setupWebSocket(2);
+            setupWebSocket(3);
+        };
     </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Capture and Send Photo</title>
+    <title>Capture and Send Video</title>
     <style>
         #statusMessage {
             margin-top: 20px;
@@ -33,19 +33,19 @@
         const statusMessage = document.getElementById('statusMessage');
 
         let currentStream = null;
-        let selectedRoute = '';
+        let selectedStream = '';
+        let ws = null;
 
         function displayMessage(message, isError = false) {
             statusMessage.textContent = message;
             statusMessage.style.color = isError ? 'red' : 'green';
         }
 
-        async function startStream(deviceId) {
+        async function startStream(streamId) {
             try {
                 const constraints = {
                     video: {
                         facingMode: 'environment',
-                        deviceId: deviceId ? { exact: deviceId } : undefined
                     }
                 };
 
@@ -56,77 +56,50 @@
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 localVideo.srcObject = stream;
                 currentStream = stream;
-                startSendingFrames();
+
+                if (ws) {
+                    ws.close();
+                }
+
+                ws = new WebSocket(`ws://localhost:3000?stream=${streamId}`);
+                
+                ws.onopen = () => {
+                    displayMessage(`Conectado ao stream ${streamId}`);
+                    startSendingFrames();
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    displayMessage('Erro na conexão WebSocket', true);
+                };
+
+                selectedStream = streamId;
             } catch (error) {
                 console.error('Error accessing media devices:', error);
                 displayMessage('Erro ao acessar a câmera.', true);
             }
         }
 
-        function captureAndSendPhoto() {
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.width = localVideo.videoWidth;
-            canvas.height = localVideo.videoHeight;
-            context.drawImage(localVideo, 0, 0);
-
-            const frame = canvas.toDataURL('image/jpeg').split(',')[1];
-            sendFrameToApi(frame);
-        }
-
-        async function sendFrameToApi(frame) {
-            try {
-                const response = await fetch(`https://videoec.vercel.app/${selectedRoute}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ frame })
-                });
-
-                const result = await response.json();
-                
-                if (!response.ok) {
-                    console.error('Erro ao enviar o frame:', result.message);
-                    displayMessage(`Erro ao enviar o frame: ${result.message}`, true);
-                } else {
-                    displayMessage(`Resposta do servidor: ${result.message}`);
-                }
-            } catch (error) {
-                console.error('Erro ao enviar o frame:', error);
-                displayMessage('Erro ao enviar o frame.', true);
-            }
-        }
-
         function startSendingFrames() {
-            function captureLoop() {
-                captureAndSendPhoto();
-                requestAnimationFrame(captureLoop);
-            }
-            captureLoop();
+            const mediaRecorder = new MediaRecorder(currentStream, {
+                mimeType: 'video/webm;codecs=vp9',
+                videoBitsPerSecond: 1000000
+            });
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+                    ws.send(event.data);
+                }
+            };
+
+            mediaRecorder.start(100); // Envia chunks de vídeo a cada 100ms
         }
 
-        document.getElementById('button1').addEventListener('click', () => {
-            selectedRoute = 'stream1';
-            startStream();
-        });
+        document.getElementById('button1').addEventListener('click', () => startStream('1'));
+        document.getElementById('button2').addEventListener('click', () => startStream('2'));
+        document.getElementById('button3').addEventListener('click', () => startStream('3'));
 
-        document.getElementById('button2').addEventListener('click', () => {
-            selectedRoute = 'stream2';
-            startStream();
-        });
-
-        document.getElementById('button3').addEventListener('click', () => {
-            selectedRoute = 'stream3';
-            startStream();
-        });
-
-        window.onload = () => {
-            navigator.mediaDevices.enumerateDevices().then(devices => {
-                const cameras = devices.filter(device => device.kind === 'videoinput');
-                if (cameras.length > 0) {
-                    startStream(cameras[0].deviceId);
-                }
-            });
-        };
+        window.onload = () => startStream('1'); // Inicia com a câmera 1 por padrão
     </script>
 </body>
 </html>
