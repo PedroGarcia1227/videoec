@@ -36,16 +36,41 @@
         let selectedStream = '';
         let ws = null;
 
+        // Função para obter a URL do WebSocket baseada no ambiente atual
+        function getWebSocketUrl(streamId) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            return `${protocol}//${host}?stream=${streamId}`;
+        }
+
         function displayMessage(message, isError = false) {
             statusMessage.textContent = message;
             statusMessage.style.color = isError ? 'red' : 'green';
         }
 
+        async function listCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                console.log('Available cameras:', videoDevices);
+                return videoDevices;
+            } catch (error) {
+                console.error('Error listing cameras:', error);
+                displayMessage('Erro ao listar câmeras disponíveis.', true);
+                return [];
+            }
+        }
+
         async function startStream(streamId) {
             try {
+                const cameras = await listCameras();
+                if (cameras.length === 0) {
+                    throw new Error('Nenhuma câmera encontrada');
+                }
+
                 const constraints = {
                     video: {
-                        facingMode: 'environment',
+                        deviceId: cameras[0].deviceId
                     }
                 };
 
@@ -61,7 +86,8 @@
                     ws.close();
                 }
 
-                ws = new WebSocket(`ws://localhost:3000?stream=${streamId}`);
+                const wsUrl = getWebSocketUrl(streamId);
+                ws = new WebSocket(wsUrl);
                 
                 ws.onopen = () => {
                     displayMessage(`Conectado ao stream ${streamId}`);
@@ -76,7 +102,7 @@
                 selectedStream = streamId;
             } catch (error) {
                 console.error('Error accessing media devices:', error);
-                displayMessage('Erro ao acessar a câmera.', true);
+                displayMessage(`Erro ao acessar a câmera: ${error.message}`, true);
             }
         }
 
@@ -99,7 +125,14 @@
         document.getElementById('button2').addEventListener('click', () => startStream('2'));
         document.getElementById('button3').addEventListener('click', () => startStream('3'));
 
-        window.onload = () => startStream('1'); // Inicia com a câmera 1 por padrão
+        window.onload = async () => {
+            const cameras = await listCameras();
+            if (cameras.length > 0) {
+                startStream('1'); // Inicia com a câmera 1 por padrão
+            } else {
+                displayMessage('Nenhuma câmera encontrada. Por favor, conecte uma câmera e recarregue a página.', true);
+            }
+        };
     </script>
 </body>
 </html>
