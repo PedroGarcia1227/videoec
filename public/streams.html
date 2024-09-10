@@ -38,9 +38,8 @@
 
         // Função para obter a URL do WebSocket baseada no ambiente atual
         function getWebSocketUrl(streamId) {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.host;
-            return `${protocol}//${host}?stream=${streamId}`;
+            return `wss//${host}?stream=${streamId}`;
         }
 
         function displayMessage(message, isError = false) {
