@@ -96,7 +96,11 @@
 
                 ws.onerror = (error) => {
                     console.error('WebSocket error:', error);
-                    displayMessage('Erro na conexão WebSocket', true);
+                    displayMessage(`Erro na conexão WebSocket: ${error.message || error}`, true);
+                };
+
+                ws.onclose = (event) => {
+                    displayMessage(`WebSocket fechado. Código: ${event.code}, Motivo: ${event.reason}`, true);
                 };
 
                 selectedStream = streamId;
