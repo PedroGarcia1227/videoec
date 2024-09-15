@@ -1,10 +1,17 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api-server.js", "use": "@vercel/node" }
+    { 
+      "src": "api-server.js", 
+      "use": "@vercel/node",
+      "config": { "includeFiles": ["public/**"] }
+    }
   ],
   "routes": [
     { "src": "/socket.io/(.*)", "dest": "api-server.js" },
     { "src": "/(.*)", "dest": "api-server.js" }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
