@@ -1,56 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Stream</title>
-    <style>
-        .container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            flex-wrap: wrap;
-            margin: 0 auto;
-        }
-        .camera {
-            text-align: center;
-            border: 1px solid #ddd;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 8px;
-        }
-        .camera video {
-            width: 320px;
-            height: 240px;
-            object-fit: cover;
-        }
-        .camera h2 {
-            margin: 0;
-            font-size: 18px;
-            color: #333;
-        }
-    </style>
+    <!-- ... (código anterior permanece o mesmo) ... -->
 </head>
 <body>
-    <div class="container">
-        <div class="camera">
-            <h2>Camera 1</h2>
-            <video id="camera1" autoplay playsinline></video>
-        </div>
-        <div class="camera">
-            <h2>Camera 2</h2>
-            <video id="camera2" autoplay playsinline></video>
-        </div>
-        <div class="camera">
-            <h2>Camera 3</h2>
-            <video id="camera3" autoplay playsinline></video>
-        </div>
-    </div>
+    <!-- ... (código anterior permanece o mesmo) ... -->
+
     <script>
         function startWebSocket(camera) {
             const video = document.getElementById(`camera${camera}`);
-            const ws = new WebSocket(`ws://${window.location.host}/stream${camera}`);
+            
+            // Usar 'wss://' para WebSocket seguro
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/stream${camera}`;
+            const ws = new WebSocket(wsUrl);
 
             ws.onmessage = (event) => {
                 const blob = event.data;
@@ -67,11 +30,7 @@
             };
         }
 
-        window.onload = () => {
-            startWebSocket(1);
-            startWebSocket(2);
-            startWebSocket(3);
-        };
+        // ... (o resto do código permanece o mesmo) ...
     </script>
 </body>
 </html>
