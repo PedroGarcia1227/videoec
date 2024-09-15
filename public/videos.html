@@ -1,36 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- ... (código anterior permanece o mesmo) ... -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Stream</title>
+    <style>
+        /* ... (estilos permanecem os mesmos) ... */
+    </style>
 </head>
 <body>
-    <!-- ... (código anterior permanece o mesmo) ... -->
-
+    <div class="container">
+        <div class="camera">
+            <h2>Camera 1</h2>
+            <video id="camera1" autoplay playsinline></video>
+        </div>
+        <div class="camera">
+            <h2>Camera 2</h2>
+            <video id="camera2" autoplay playsinline></video>
+        </div>
+        <div class="camera">
+            <h2>Camera 3</h2>
+            <video id="camera3" autoplay playsinline></video>
+        </div>
+    </div>
     <script>
         function startWebSocket(camera) {
             const video = document.getElementById(`camera${camera}`);
             
-            // Usar 'wss://' para WebSocket seguro
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/stream${camera}`;
-            const ws = new WebSocket(wsUrl);
+            // Forçar o uso de 'wss://'
+            const protocol = 'wss:';
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}/stream${camera}`;
+            
+            console.log(`Connecting to WebSocket URL for camera ${camera}:`, wsUrl);  // Log para depuração
 
-            ws.onmessage = (event) => {
-                const blob = event.data;
-                const url = URL.createObjectURL(blob);
-                video.src = url;
-            };
+            try {
+                const ws = new WebSocket(wsUrl);
 
-            ws.onerror = (error) => {
-                console.error(`WebSocket error for camera ${camera}:`, error);
-            };
+                ws.onmessage = (event) => {
+                    const blob = event.data;
+                    const url = URL.createObjectURL(blob);
+                    video.src = url;
+                };
 
-            ws.onclose = () => {
-                console.log(`WebSocket connection closed for camera ${camera}`);
-            };
+                ws.onerror = (error) => {
+                    console.error(`WebSocket error for camera ${camera}:`, error);
+                };
+
+                ws.onclose = () => {
+                    console.log(`WebSocket connection closed for camera ${camera}`);
+                };
+            } catch (error) {
+                console.error(`Error creating WebSocket for camera ${camera}:`, error);
+            }
         }
 
-        // ... (o resto do código permanece o mesmo) ...
+        window.onload = () => {
+            startWebSocket(1);
+            startWebSocket(2);
+            startWebSocket(3);
+        };
     </script>
 </body>
 </html>
