@@ -48,38 +48,29 @@
         </div>
     </div>
     <script>
-        function setupWebSocket(cameraId) {
-            const video = document.getElementById(`camera${cameraId}`);
-            const ws = new WebSocket(`ws://localhost:3000?stream=${cameraId}`);
-            
-            let mediaSource;
-            let sourceBuffer;
-
-            ws.onopen = () => {
-                console.log(`Conectado ao stream ${cameraId}`);
-                mediaSource = new MediaSource();
-                video.src = URL.createObjectURL(mediaSource);
-
-                mediaSource.onsourceopen = () => {
-                    sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs=vp9');
-                };
-            };
+        function startWebSocket(camera) {
+            const video = document.getElementById(`camera${camera}`);
+            const ws = new WebSocket(`ws://${window.location.host}/stream${camera}`);
 
             ws.onmessage = (event) => {
-                if (sourceBuffer && !sourceBuffer.updating) {
-                    sourceBuffer.appendBuffer(event.data);
-                }
+                const blob = event.data;
+                const url = URL.createObjectURL(blob);
+                video.src = url;
             };
 
             ws.onerror = (error) => {
-                console.error(`Erro na conexão WebSocket para câmera ${cameraId}:`, error);
+                console.error(`WebSocket error for camera ${camera}:`, error);
+            };
+
+            ws.onclose = () => {
+                console.log(`WebSocket connection closed for camera ${camera}`);
             };
         }
 
         window.onload = () => {
-            setupWebSocket(1);
-            setupWebSocket(2);
-            setupWebSocket(3);
+            startWebSocket(1);
+            startWebSocket(2);
+            startWebSocket(3);
         };
     </script>
 </body>

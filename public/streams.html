@@ -33,43 +33,20 @@
         const statusMessage = document.getElementById('statusMessage');
 
         let currentStream = null;
-        let selectedStream = '';
+        let selectedRoute = '';
         let ws = null;
-
-        // Função para obter a URL do WebSocket baseada no ambiente atual
-        function getWebSocketUrl(streamId) {
-            const host = window.location.host;
-            return `wss//${host}?stream=${streamId}`;
-        }
 
         function displayMessage(message, isError = false) {
             statusMessage.textContent = message;
             statusMessage.style.color = isError ? 'red' : 'green';
         }
 
-        async function listCameras() {
+        async function startStream(deviceId) {
             try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                console.log('Available cameras:', videoDevices);
-                return videoDevices;
-            } catch (error) {
-                console.error('Error listing cameras:', error);
-                displayMessage('Erro ao listar câmeras disponíveis.', true);
-                return [];
-            }
-        }
-
-        async function startStream(streamId) {
-            try {
-                const cameras = await listCameras();
-                if (cameras.length === 0) {
-                    throw new Error('Nenhuma câmera encontrada');
-                }
-
                 const constraints = {
                     video: {
-                        deviceId: cameras[0].deviceId
+                        facingMode: 'environment',
+                        deviceId: deviceId ? { exact: deviceId } : undefined
                     }
                 };
 
@@ -80,61 +57,74 @@
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 localVideo.srcObject = stream;
                 currentStream = stream;
-
-                if (ws) {
-                    ws.close();
-                }
-
-                const wsUrl = getWebSocketUrl(streamId);
-                ws = new WebSocket(wsUrl);
-                
-                ws.onopen = () => {
-                    displayMessage(`Conectado ao stream ${streamId}`);
-                    startSendingFrames();
-                };
-
-                ws.onerror = (error) => {
-                    console.error('WebSocket error:', error);
-                    displayMessage(`Erro na conexão WebSocket: ${error.message || error}`, true);
-                };
-
-                ws.onclose = (event) => {
-                    displayMessage(`WebSocket fechado. Código: ${event.code}, Motivo: ${event.reason}`, true);
-                };
-
-                selectedStream = streamId;
+                startWebSocket();
             } catch (error) {
                 console.error('Error accessing media devices:', error);
-                displayMessage(`Erro ao acessar a câmera: ${error.message}`, true);
+                displayMessage('Erro ao acessar a câmera.', true);
             }
+        }
+
+        function startWebSocket() {
+            if (ws) {
+                ws.close();
+            }
+
+            ws = new WebSocket(`ws://${window.location.host}/${selectedRoute}`);
+
+            ws.onopen = () => {
+                console.log('WebSocket connection established');
+                startSendingFrames();
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                displayMessage('Erro na conexão WebSocket.', true);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket connection closed');
+            };
+        }
+
+        function captureAndSendFrame() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = localVideo.videoWidth;
+            canvas.height = localVideo.videoHeight;
+            canvas.getContext('2d').drawImage(localVideo, 0, 0);
+            canvas.toBlob((blob) => {
+                ws.send(blob);
+            }, 'image/jpeg', 0.8);
         }
 
         function startSendingFrames() {
-            const mediaRecorder = new MediaRecorder(currentStream, {
-                mimeType: 'video/webm;codecs=vp9',
-                videoBitsPerSecond: 1000000
-            });
-
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-                    ws.send(event.data);
-                }
-            };
-
-            mediaRecorder.start(100); // Envia chunks de vídeo a cada 100ms
+            const fps = 30;
+            setInterval(captureAndSendFrame, 1000 / fps);
         }
 
-        document.getElementById('button1').addEventListener('click', () => startStream('1'));
-        document.getElementById('button2').addEventListener('click', () => startStream('2'));
-        document.getElementById('button3').addEventListener('click', () => startStream('3'));
+        document.getElementById('button1').addEventListener('click', () => {
+            selectedRoute = 'stream1';
+            startStream();
+        });
 
-        window.onload = async () => {
-            const cameras = await listCameras();
-            if (cameras.length > 0) {
-                startStream('1'); // Inicia com a câmera 1 por padrão
-            } else {
-                displayMessage('Nenhuma câmera encontrada. Por favor, conecte uma câmera e recarregue a página.', true);
-            }
+        document.getElementById('button2').addEventListener('click', () => {
+            selectedRoute = 'stream2';
+            startStream();
+        });
+
+        document.getElementById('button3').addEventListener('click', () => {
+            selectedRoute = 'stream3';
+            startStream();
+        });
+
+        window.onload = () => {
+            navigator.mediaDevices.enumerateDevices().then(devices => {
+                const cameras = devices.filter(device => device.kind === 'videoinput');
+                if (cameras.length > 0) {
+                    startStream(cameras[0].deviceId);
+                }
+            });
         };
     </script>
 </body>

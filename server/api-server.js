@@ -1,6 +1,8 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
+const bodyParser = require('body-parser');
+const cors = require('cors');
 const path = require('path');
 
 const app = express();
@@ -10,35 +12,10 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(cors());
 
 const streams = new Map();
-
-wss.on('connection', (ws, req) => {
-  const streamId = new URL(req.url, 'http://localhost').searchParams.get('stream');
-  
-  if (streamId) {
-    if (!streams.has(streamId)) {
-      streams.set(streamId, new Set());
-    }
-    streams.get(streamId).add(ws);
-
-    console.log(`Cliente conectado ao stream ${streamId}`);
-
-    ws.on('message', (message) => {
-      // Broadcast a mensagem para todos os clientes conectados a este stream
-      streams.get(streamId).forEach((client) => {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
-          client.send(message);
-        }
-      });
-    });
-
-    ws.on('close', () => {
-      streams.get(streamId).delete(ws);
-      console.log(`Cliente desconectado do stream ${streamId}`);
-    });
-  }
-});
 
 app.get('/', (req, res) => {
   res.status(200).send('API está funcionando');
@@ -50,6 +27,33 @@ app.get('/streams', (req, res) => {
 
 app.get('/videos', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'videos.html'));
+});
+
+wss.on('connection', (ws, req) => {
+  const streamId = req.url.split('/')[1];
+  console.log(`Nova conexão para o stream ${streamId}`);
+
+  if (!streams.has(streamId)) {
+    streams.set(streamId, new Set());
+  }
+  streams.get(streamId).add(ws);
+
+  ws.on('message', (message) => {
+    const clients = streams.get(streamId);
+    clients.forEach((client) => {
+      if (client !== ws && client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  });
+
+  ws.on('close', () => {
+    console.log(`Conexão fechada para o stream ${streamId}`);
+    streams.get(streamId).delete(ws);
+    if (streams.get(streamId).size === 0) {
+      streams.delete(streamId);
+    }
+  });
 });
 
 server.listen(PORT, () => {
