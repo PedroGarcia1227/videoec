@@ -1,75 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Capture and Send Video</title>
-    <style>
-        /* ... (estilos permanecem os mesmos) ... */
-    </style>
+    <!-- ... (código anterior permanece o mesmo) ... -->
 </head>
 <body>
-    <video id="localVideo" autoplay playsinline></video>
-    <div id="buttons">
-        <button id="button1">Camera 1</button>
-        <button id="button2">Camera 2</button>
-        <button id="button3">Camera 3</button>
-    </div>
-    <div id="statusMessage"></div>
+    <!-- ... (código anterior permanece o mesmo) ... -->
 
     <script>
-        const localVideo = document.getElementById('localVideo');
-        const statusMessage = document.getElementById('statusMessage');
-
-        let currentStream = null;
-        let selectedRoute = '';
-        let ws = null;
-
-        function displayMessage(message, isError = false) {
-            statusMessage.textContent = message;
-            statusMessage.style.color = isError ? 'red' : 'green';
-        }
-
-        async function startStream(deviceId) {
-            try {
-                const constraints = {
-                    video: {
-                        facingMode: 'environment',
-                        deviceId: deviceId ? { exact: deviceId } : undefined
-                    }
-                };
-
-                if (currentStream) {
-                    currentStream.getTracks().forEach(track => track.stop());
-                }
-
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                localVideo.srcObject = stream;
-                currentStream = stream;
-                startWebSocket();
-            } catch (error) {
-                console.error('Error accessing media devices:', error);
-                displayMessage('Erro ao acessar a câmera.', true);
-            }
-        }
+        // ... (código anterior permanece o mesmo) ...
 
         function startWebSocket() {
             if (ws) {
                 ws.close();
             }
 
-            // Forçar o uso de 'wss://' quando a página é carregada via HTTPS
             const protocol = 'wss:';
             const host = window.location.host;
             const wsUrl = `${protocol}//${host}/${selectedRoute}`;
             
-            console.log('Connecting to WebSocket URL:', wsUrl);  // Log para depuração
+            console.log('Attempting to connect to WebSocket URL:', wsUrl);
 
             try {
                 ws = new WebSocket(wsUrl);
 
                 ws.onopen = () => {
-                    console.log('WebSocket connection established');
+                    console.log('WebSocket connection established successfully');
                     startSendingFrames();
                 };
 
@@ -78,8 +33,9 @@
                     displayMessage('Erro na conexão WebSocket.', true);
                 };
 
-                ws.onclose = () => {
-                    console.log('WebSocket connection closed');
+                ws.onclose = (event) => {
+                    console.log('WebSocket connection closed', event);
+                    displayMessage('Conexão WebSocket fechada.', true);
                 };
             } catch (error) {
                 console.error('Error creating WebSocket:', error);
@@ -87,46 +43,7 @@
             }
         }
 
-        function captureAndSendFrame() {
-            if (!ws || ws.readyState !== WebSocket.OPEN) return;
-
-            const canvas = document.createElement('canvas');
-            canvas.width = localVideo.videoWidth;
-            canvas.height = localVideo.videoHeight;
-            canvas.getContext('2d').drawImage(localVideo, 0, 0);
-            canvas.toBlob((blob) => {
-                ws.send(blob);
-            }, 'image/jpeg', 0.8);
-        }
-
-        function startSendingFrames() {
-            const fps = 30;
-            setInterval(captureAndSendFrame, 1000 / fps);
-        }
-
-        document.getElementById('button1').addEventListener('click', () => {
-            selectedRoute = 'stream1';
-            startStream();
-        });
-
-        document.getElementById('button2').addEventListener('click', () => {
-            selectedRoute = 'stream2';
-            startStream();
-        });
-
-        document.getElementById('button3').addEventListener('click', () => {
-            selectedRoute = 'stream3';
-            startStream();
-        });
-
-        window.onload = () => {
-            navigator.mediaDevices.enumerateDevices().then(devices => {
-                const cameras = devices.filter(device => device.kind === 'videoinput');
-                if (cameras.length > 0) {
-                    startStream(cameras[0].deviceId);
-                }
-            });
-        };
+        // ... (resto do código permanece o mesmo) ...
     </script>
 </body>
 </html>

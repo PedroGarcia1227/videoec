@@ -7,7 +7,7 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ noServer: true });
 
 const PORT = process.env.PORT || 3000;
 
@@ -27,6 +27,12 @@ app.get('/streams', (req, res) => {
 
 app.get('/videos', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'videos.html'));
+});
+
+server.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
 });
 
 wss.on('connection', (ws, req) => {
@@ -59,3 +65,5 @@ wss.on('connection', (ws, req) => {
 server.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
+
+module.exports = app;
