@@ -1,11 +1,11 @@
 const express = require('express');
+const { Server } = require('socket.io');
 const http = require('http');
-const socketIo = require('socket.io');
 const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = new Server(server);
 
 // Servindo HTML para capturar a câmera
 app.get('/stream', (req, res) => {
@@ -41,7 +41,9 @@ io.on('connection', (socket) => {
     });
 });
 
-// Iniciando o servidor
-server.listen(3000, () => {
-    console.log('Servidor rodando na porta 3000');
-});
+// Exportando a função para o Vercel
+module.exports = (req, res) => {
+    server(req, res, () => {
+        io(req, res);
+    });
+};
