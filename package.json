@@ -11,8 +11,10 @@
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.19.2",
+    "express": "^4.21.0",
     "path": "^0.12.7",
+    "socket.io": "^4.7.5",
+    "webrtc-adapter": "^9.0.1",
     "ws": "^8.18.0"
   }
 }
