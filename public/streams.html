@@ -1,49 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- ... (código anterior permanece o mesmo) ... -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transmitir Câmera</title>
 </head>
 <body>
-    <!-- ... (código anterior permanece o mesmo) ... -->
-
+    <h1>Transmitir Câmera</h1>
+    <video id="localVideo" autoplay playsinline></video>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
     <script>
-        // ... (código anterior permanece o mesmo) ...
+        const socket = io();
+        const localVideo = document.getElementById('localVideo');
 
-        function startWebSocket() {
-            if (ws) {
-                ws.close();
-            }
+        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+            .then(stream => {
+                localVideo.srcObject = stream;
 
-            const protocol = 'wss:';
-            const host = window.location.host;
-            const wsUrl = `${protocol}//${host}/${selectedRoute}`;
-            
-            console.log('Attempting to connect to WebSocket URL:', wsUrl);
+                const peerConnection = new RTCPeerConnection();
 
-            try {
-                ws = new WebSocket(wsUrl);
+                // Adiciona as tracks da câmera ao PeerConnection
+                stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
 
-                ws.onopen = () => {
-                    console.log('WebSocket connection established successfully');
-                    startSendingFrames();
+                // Envia a oferta de conexão (offer) para o servidor
+                peerConnection.createOffer()
+                    .then(offer => {
+                        return peerConnection.setLocalDescription(offer);
+                    })
+                    .then(() => {
+                        console.log("Oferta enviada:", peerConnection.localDescription);
+                        socket.emit('offer', peerConnection.localDescription);
+                    })
+                    .catch(err => console.error("Erro ao criar oferta:", err));
+
+                // Recebe a resposta de conexão (answer) do visualizador
+                socket.on('answer', answer => {
+                    peerConnection.setRemoteDescription(answer)
+                        .then(() => console.log("Resposta recebida e aplicada:", answer))
+                        .catch(err => console.error('Erro ao definir RemoteDescription (answer):', err));
+                });
+
+                // Troca de candidatos ICE (para firewall/travessia de NAT)
+                peerConnection.onicecandidate = event => {
+                    if (event.candidate) {
+                        console.log("Enviando candidato ICE:", event.candidate);
+                        socket.emit('candidate', event.candidate);
+                    }
                 };
 
-                ws.onerror = (error) => {
-                    console.error('WebSocket error:', error);
-                    displayMessage('Erro na conexão WebSocket.', true);
-                };
-
-                ws.onclose = (event) => {
-                    console.log('WebSocket connection closed', event);
-                    displayMessage('Conexão WebSocket fechada.', true);
-                };
-            } catch (error) {
-                console.error('Error creating WebSocket:', error);
-                displayMessage('Erro ao criar conexão WebSocket.', true);
-            }
-        }
-
-        // ... (resto do código permanece o mesmo) ...
+                // Recebe os candidatos ICE
+                socket.on('candidate', candidate => {
+                    peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+                        .then(() => console.log('Candidato ICE adicionado com sucesso:', candidate))
+                        .catch(err => console.error('Erro ao adicionar ICE Candidate:', err));
+                });
+            })
+            .catch(error => {
+                console.error('Erro ao acessar a câmera:', error);
+            });
     </script>
 </body>
 </html>

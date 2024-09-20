@@ -3,62 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Stream</title>
+    <title>Visualizar Transmissão</title>
     <style>
-        /* ... (estilos permanecem os mesmos) ... */
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        video {
+            width: 80%;
+            max-width: 720px;
+            height: auto;
+            background-color: black;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="camera">
-            <h2>Camera 1</h2>
-            <video id="camera1" autoplay playsinline></video>
-        </div>
-        <div class="camera">
-            <h2>Camera 2</h2>
-            <video id="camera2" autoplay playsinline></video>
-        </div>
-        <div class="camera">
-            <h2>Camera 3</h2>
-            <video id="camera3" autoplay playsinline></video>
-        </div>
-    </div>
+    <h1>Visualizar Transmissão</h1>
+    <video id="remoteVideo" autoplay playsinline controls></video>
+    <p id="status">Aguardando stream...</p>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
     <script>
-        function startWebSocket(camera) {
-            const video = document.getElementById(`camera${camera}`);
-            
-            // Forçar o uso de 'wss://'
-            const protocol = 'wss:';
-            const host = window.location.host;
-            const wsUrl = `${protocol}//${host}/stream${camera}`;
-            
-            console.log(`Connecting to WebSocket URL for camera ${camera}:`, wsUrl);  // Log para depuração
+        const socket = io();
+        const remoteVideo = document.getElementById('remoteVideo');
+        const statusText = document.getElementById('status');
 
-            try {
-                const ws = new WebSocket(wsUrl);
+        const peerConnection = new RTCPeerConnection();
 
-                ws.onmessage = (event) => {
-                    const blob = event.data;
-                    const url = URL.createObjectURL(blob);
-                    video.src = url;
-                };
-
-                ws.onerror = (error) => {
-                    console.error(`WebSocket error for camera ${camera}:`, error);
-                };
-
-                ws.onclose = () => {
-                    console.log(`WebSocket connection closed for camera ${camera}`);
-                };
-            } catch (error) {
-                console.error(`Error creating WebSocket for camera ${camera}:`, error);
+        // Adiciona a stream remota ao vídeo
+        peerConnection.ontrack = event => {
+            if (remoteVideo.srcObject !== event.streams[0]) {
+                remoteVideo.srcObject = event.streams[0];
+                remoteVideo.play();  // Garante que o vídeo seja reproduzido
+                statusText.innerText = "Stream de vídeo remoto adicionado.";
+                console.log('Stream de vídeo remoto adicionado.');
             }
-        }
+        };
 
-        window.onload = () => {
-            startWebSocket(1);
-            startWebSocket(2);
-            startWebSocket(3);
+        // Recebe a oferta de conexão (offer) do transmissor
+        socket.on('offer', offer => {
+            peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
+                .then(() => {
+                    console.log("Oferta recebida e aplicada:", offer);
+                    return peerConnection.createAnswer();
+                })
+                .then(answer => {
+                    return peerConnection.setLocalDescription(answer);
+                })
+                .then(() => {
+                    console.log("Resposta enviada:", peerConnection.localDescription);
+                    socket.emit('answer', peerConnection.localDescription);
+                    statusText.innerText = "Enviando resposta...";
+                })
+                .catch(err => {
+                    console.error('Erro ao processar a oferta:', err);
+                });
+        });
+
+        // Troca de candidatos ICE
+        peerConnection.onicecandidate = event => {
+            if (event.candidate) {
+                console.log("Enviando candidato ICE:", event.candidate);
+                socket.emit('candidate', event.candidate);
+            }
+        };
+
+        // Recebe candidatos ICE do transmissor
+        socket.on('candidate', candidate => {
+            peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+                .then(() => console.log('Candidato ICE adicionado com sucesso:', candidate))
+                .catch(err => console.error('Erro ao adicionar ICE Candidate:', err));
+        });
+
+        // Verificação se o vídeo está funcionando corretamente
+        remoteVideo.onloadedmetadata = () => {
+            console.log("Metadata do vídeo carregada.");
+            statusText.innerText = "Transmissão ao vivo recebida!";
+        };
+
+        remoteVideo.onplay = () => {
+            console.log("Vídeo está sendo reproduzido.");
+        };
+
+        remoteVideo.onerror = (err) => {
+            console.error("Erro ao tentar reproduzir o vídeo:", err);
+            statusText.innerText = "Erro ao tentar carregar a transmissão.";
         };
     </script>
 </body>

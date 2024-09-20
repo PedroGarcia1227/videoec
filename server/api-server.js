@@ -1,69 +1,47 @@
 const express = require('express');
 const http = require('http');
-const WebSocket = require('ws');
-const bodyParser = require('body-parser');
-const cors = require('cors');
+const socketIo = require('socket.io');
 const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ noServer: true });
+const io = socketIo(server);
 
-const PORT = process.env.PORT || 3000;
-
-app.use(express.static(path.join(__dirname, '..', 'public')));
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(cors());
-
-const streams = new Map();
-
-app.get('/', (req, res) => {
-  res.status(200).send('API está funcionando');
+// Servindo HTML para capturar a câmera
+app.get('/stream', (req, res) => {
+    res.sendFile(path.join(__dirname, 'stream.html'));
 });
 
-app.get('/streams', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'streams.html'));
+// Servindo HTML para visualizar o stream ao vivo
+app.get('/view', (req, res) => {
+    res.sendFile(path.join(__dirname, 'view.html'));
 });
 
-app.get('/videos', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'videos.html'));
-});
+// WebSocket para sinalização WebRTC
+io.on('connection', (socket) => {
+    console.log('Novo cliente conectado.');
 
-server.on('upgrade', (request, socket, head) => {
-  wss.handleUpgrade(request, socket, head, (ws) => {
-    wss.emit('connection', ws, request);
-  });
-});
-
-wss.on('connection', (ws, req) => {
-  const streamId = req.url.split('/')[1];
-  console.log(`Nova conexão para o stream ${streamId}`);
-
-  if (!streams.has(streamId)) {
-    streams.set(streamId, new Set());
-  }
-  streams.get(streamId).add(ws);
-
-  ws.on('message', (message) => {
-    const clients = streams.get(streamId);
-    clients.forEach((client) => {
-      if (client !== ws && client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
+    socket.on('offer', (offer) => {
+        console.log('Recebendo oferta...');
+        socket.broadcast.emit('offer', offer);
     });
-  });
 
-  ws.on('close', () => {
-    console.log(`Conexão fechada para o stream ${streamId}`);
-    streams.get(streamId).delete(ws);
-    if (streams.get(streamId).size === 0) {
-      streams.delete(streamId);
-    }
-  });
+    socket.on('answer', (answer) => {
+        console.log('Recebendo resposta...');
+        socket.broadcast.emit('answer', answer);
+    });
+
+    socket.on('candidate', (candidate) => {
+        console.log('Recebendo candidato ICE...');
+        socket.broadcast.emit('candidate', candidate);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Cliente desconectado.');
+    });
 });
 
-server.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+// Iniciando o servidor
+server.listen(3000, () => {
+    console.log('Servidor rodando na porta 3000');
 });
-
-module.exports = app;
